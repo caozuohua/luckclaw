@@ -1,0 +1,5 @@
+lark-oapi==1.5.5
+anthropic[vertex]==0.49.0
+google-cloud-aiplatform==1.74.0
+sqlitedict==2.1.0
+requests==2.32.3

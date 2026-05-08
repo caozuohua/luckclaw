@@ -1,0 +1,8 @@
+-e agent.db
+config.py
+credentials.json
+*.bak
+venv/
+__pycache__/
+memory/
+backups/
