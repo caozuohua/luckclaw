@@ -1,31 +1,39 @@
-# luckclaw
+# Luckclaw 
+[![Stargazers](https://img.shields.io/github/stars/caozuohua/luckclaw?style=flat-square)](https://github.com/caozuohua/luckclaw/stargazers)
+[![Issues](https://img.shields.io/github/issues/caozuohua/luckclaw?style=flat-square)](https://github.com/caozuohua/luckclaw/issues)
+[![MIT License](https://img.shields.io/github/license/caozuohua/luckclaw?style=flat-square)](https://github.com/caozuohua/luckclaw/blob/main/LICENSE)
 
-Your personal AI assistant, deployed on a Google Cloud VPS (e2-micro). It can directly operate the server, manage blogs, emails, and GitHub repositories.
+**Luckclaw** is a minimalist, open-source AI agent designed specifically for the individual developer. It runs on a Google Cloud VPS and acts as your personal assistant for managing your digital footprint across your blog, GitHub repositories, and the VPS itself.
 
-## Features
+Built with Python and leveraging the power of Google's Agent Platform and Lark for communication, Luckclaw aims to be the perfect, low-maintenance sidekick for your creative and development workflows.
 
-- **Direct Server Operation**: Execute shell commands on the VPS.
-- **Content Management**: Create, update, and publish blog posts using Hugo.
-- **GitHub Integration**: Manage repositories, files, and workflows.
-- **Self-Evolution**: The agent can update its own system prompts and create new tools.
-- **Extensible Tools**: A plug-in architecture allows for adding new capabilities on the fly.
-- **Long-term Memory**: Remembers key information across sessions.
+### Core Philosophy
 
-## Architecture
+*   **Simplicity:** No complex dashboards. Just chat with it.
+*   **Ownership:** You host it, you control it. It runs on your own VPS.
+*   **Extensibility:** Easily create new tools and capabilities using simple Python or shell scripts.
+*   **Focus:** Built for developers, by a developer (and his AI assistant). It automates the tedious parts of a developer's life.
 
-This project follows a modular architecture to separate concerns and allow for easy extension.
+### Key Features
+
+*   **Blog Management**: Write, publish, and manage your Hugo-based blog directly from the chat.
+*   **GitHub Operations**: Initialize repositories, manage files, and perform common GitHub tasks.
+*   **VPS Control**: Execute shell commands, manage system services, and install software on your VPS.
+*   **Self-Evolution**: Luckclaw can remember key information, update its own system prompt, and even create new tools for itself.
+
+### Architecture
 
 ```
 lark-agent/
-├── main.py              # Entrypoint, responsible for startup
+├── main.py              # Main entry point, just starts the agent
 ├── config.py            # Centralized configuration management
 ├── lark/
 │   ├── client.py        # Send/receive messages, file uploads
-│   └── handler.py       # Event handling and command routing
+│   └── handler.py       # Event handling, command routing
 ├── agent/
-│   ├── base.py          # LLM call abstraction layer (supports model switching)
+│   ├── base.py          # LLM abstraction layer (supports model switching)
 │   ├── gemini.py        # Gemini implementation
-│   └── claude.py        # Claude implementation (new)
+│   └── claude.py        # Claude implementation (NEW)
 ├── tools/
 │   ├── registry.py      # Tool registry (core of the plugin system)
 │   ├── builtin/         # Built-in tools
@@ -38,13 +46,12 @@ lark-agent/
 │       └── *.py
 ├── memory/
 │   └── store.py         # Unified storage layer
-└── .env                 # Environment variables (gitignored)
+└── .env
 ```
 
-### Core Components
+### Hot Tags & Keywords
 
-- **`lark/`**: Handles all interactions with the Lark messenger platform.
-- **`agent/`**: Contains the core logic for interacting with Large Language Models (LLMs). It features an abstraction layer that makes it simple to switch between different models like Gemini and Claude.
-- **`tools/`**: The heart of the agent's capabilities. It uses a registry pattern to discover and manage tools. New functionalities can be added by simply dropping a Python script into the `builtin` or `custom` directories.
-- **`memory/`**: Provides a persistent storage layer, allowing the agent to have long-term memory.
-- **`config.py`**: A single source of truth for all configurations, making the system easy to manage and deploy.
+`#AI` `#Agent` `#LLM` `#OpenSource` `#DeveloperTool` `#Python` `#GoogleCloud` `#VPS` `#GitHub` `#Blog` `#Automation` `#SelfHosted` `#Lark` `#Gemini` `#Claude` `#Minimalist`
+
+---
+*This README was generated and pushed by Luckclaw itself.*
