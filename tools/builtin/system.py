@@ -196,3 +196,23 @@ class ToolDeleteTool(BaseTool):
             os.remove(path)
         del tools_db[name]
         return f"✅ 工具 [{name}] 已删除"
+
+@registry.register
+class OpsLogTool(BaseTool):
+    name        = "ops_log"
+    description = "查看智能体最近的操作历史日志，了解自己做过什么。"
+    parameters  = {
+        "type": "object",
+        "properties": {
+            "lines": {"type": "integer", "description": "查看最近N条，默认20"}
+        }
+    }
+    LOG_PATH = "/opt/luckclaw/ops.log"
+
+    def execute(self, args: dict, context: dict) -> str:
+        n = args.get("lines", 20)
+        if not os.path.exists(self.LOG_PATH):
+            return "暂无操作记录"
+        with open(self.LOG_PATH) as f:
+            lines = f.readlines()
+        return "".join(lines[-n:]) or "暂无操作记录"

@@ -13,6 +13,30 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+def cleanup_db():
+    """清理过期数据，保持数据库精简"""
+    cutoff = time.time() - 30 * 86400  # 30天前
+
+    # 清理超过30天没活跃的对话历史
+    stale = [k for k, v in history_db.items()
+             if isinstance(v, list) and len(v) > 0]
+    # 只保留最近100个用户
+    if len(stale) > 100:
+        for k in stale[:-100]:
+            del history_db[k]
+
+    # 清理过期记忆
+    stale_mem = [k for k, v in memory_db.items()
+                 if v.get("timestamp", 0) < cutoff]
+    for k in stale_mem:
+        del memory_db[k]
+
+    # 进化日志只保留最近50条
+    evo_keys = sorted(evolution_db.keys())
+    for k in evo_keys[:-50]:
+        del evolution_db[k]
+
+    log.info(f"数据库清理完成")
 
 def main():
     import config
@@ -30,7 +54,13 @@ def main():
     import tools.builtin.memory
     import tools.builtin.system
     import tools.builtin.backup
+    import tools.builtin.scheduler
+    from tools.builtin.scheduler import restore_schedules
+
     log.info(f"内置工具已加载：{registry.list_tools()}")
+
+    restore_schedules()
+    log.info(f"恢复持久化定时任务restore_schedules")
 
     # 3. 加载自定义工具（智能体自己创建的）
     registry.load_directory(config.TOOLS_DIR)

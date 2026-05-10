@@ -57,6 +57,16 @@ class ShellTool(BaseTool):
             if result.returncode != 0 and "permission denied" in output.lower():
                 output += "\n\n💡 提示：尝试在命令前加 sudo 重试"
 
+            # 记录操作日志
+            import datetime
+
+            log_line = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [{cmd[:60]}] → 退出码:{result.returncode}\n"
+            try:
+                with open("/opt/luckclaw/ops.log", "a") as lf:
+                    lf.write(log_line)
+            except Exception:
+                pass
+
             return f"退出码: {result.returncode}\n{output}" if output else f"退出码: {result.returncode}"
         except subprocess.TimeoutExpired:
             return f"❌ 命令超时（{timeout}s）"

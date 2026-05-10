@@ -2,22 +2,57 @@
 lark/handler.py - 事件处理与指令路由
 支持接收：文本 / 文件 / 图片
 """
+
 import json
 import logging
 import threading
 import lark_oapi as lark
 
-from lark.client import send_text, send_file as lark_send_file, \
-    download_file, download_image
+from queue import Queue
+import threading
+
+from lark.client import (
+    send_text,
+    send_file as lark_send_file,
+    download_file,
+    download_image,
+)
 from memory.store import history_db, preference_db, memory_db
-from agent.base import get_agent, get_current_model, set_current_model, \
-    build_runtime_context, set_runtime_context
+from agent.base import (
+    get_agent,
+    get_current_model,
+    set_current_model,
+    build_runtime_context,
+    set_runtime_context,
+)
 from tools.registry import registry
 import config
 
 log = logging.getLogger(__name__)
 
 _processed_ids: set = set()
+
+_user_queues: dict[str, Queue] = {}
+_user_workers: dict[str, threading.Thread] = {}
+
+
+def _get_queue(user_id: str) -> Queue:
+    if user_id not in _user_queues:
+        q = Queue()
+        _user_queues[user_id] = q
+        threading.Thread(target=_queue_worker, args=(user_id, q), daemon=True).start()
+    return _user_queues[user_id]
+
+
+def _queue_worker(user_id: str, q: Queue):
+    while True:
+        task = q.get()
+        try:
+            task()
+        except Exception as e:
+            log.error(f"队列任务失败 [{user_id[:8]}]: {e}", exc_info=True)
+        finally:
+            q.task_done()
 
 
 def handle_command(user_id: str, text: str):
@@ -55,6 +90,7 @@ def handle_command(user_id: str, text: str):
 
     if cmd == "/files":
         import os, time
+
         recv_dir = "/opt/luckclaw/received"
         if not os.path.exists(recv_dir):
             return "📁 暂无接收文件"
@@ -63,8 +99,8 @@ def handle_command(user_id: str, text: str):
             return "📁 暂无接收文件"
         lines = []
         for f in files:
-            fp    = os.path.join(recv_dir, f)
-            size  = os.path.getsize(fp) / 1024
+            fp = os.path.join(recv_dir, f)
+            size = os.path.getsize(fp) / 1024
             mtime = time.strftime("%m-%d %H:%M", time.localtime(os.path.getmtime(fp)))
             lines.append(f"- {f} ({size:.1f}KB, {mtime})")
         return f"📁 已接收文件（{len(files)} 个）：\n" + "\n".join(lines)
@@ -78,7 +114,7 @@ def handle_command(user_id: str, text: str):
         )
 
     if cmd.startswith("/preference "):
-        pref = text[len("/preference "):].strip()
+        pref = text[len("/preference ") :].strip()
         preference_db[user_id] = pref
         return f"✅ 偏好已更新：{pref}"
 
@@ -110,17 +146,18 @@ def _handle_model_cmd(text: str) -> str:
 
 def _make_context(user_id: str) -> dict:
     return {
-        "user_id":      user_id,
-        "is_admin":     not config.ADMIN_USERS or user_id in config.ADMIN_USERS,
+        "user_id": user_id,
+        "is_admin": not config.ADMIN_USERS or user_id in config.ADMIN_USERS,
         "send_file_fn": lambda uid, path: lark_send_file(uid, path, "open_id"),
     }
 
 
-def handle_file_message(user_open_id: str, chat_id: str,
-                        chat_type: str, message) -> None:
+def handle_file_message(
+    user_open_id: str, chat_id: str, chat_type: str, message
+) -> None:
     msg_type = message.message_type
-    target   = user_open_id if chat_type == "p2p" else chat_id
-    id_type  = "open_id"    if chat_type == "p2p" else "chat_id"
+    target = user_open_id if chat_type == "p2p" else chat_id
+    id_type = "open_id" if chat_type == "p2p" else "chat_id"
 
     try:
         content = json.loads(message.content)
@@ -137,9 +174,10 @@ def handle_file_message(user_open_id: str, chat_id: str,
             send_text(target, save_path, id_type)
             return
         import os
+
         user_msg = (
             f"用户发来了一张图片，已保存到 {save_path}"
-            f"（{os.path.getsize(save_path)/1024:.1f}KB）。"
+            f"（{os.path.getsize(save_path) / 1024:.1f}KB）。"
             f"请告知用户图片已收到，并询问需要如何处理。"
         )
         reply = get_agent().chat(user_open_id, user_msg, _make_context(user_open_id))
@@ -156,9 +194,10 @@ def handle_file_message(user_open_id: str, chat_id: str,
             send_text(target, save_path, id_type)
             return
         import os
+
         user_msg = (
             f"用户发来了文件：{filename}"
-            f"（{os.path.getsize(save_path)/1024:.1f}KB），"
+            f"（{os.path.getsize(save_path) / 1024:.1f}KB），"
             f"已保存到 {save_path}。"
             f"请告知用户文件已收到，并询问需要如何处理。"
         )
@@ -166,10 +205,9 @@ def handle_file_message(user_open_id: str, chat_id: str,
         send_text(target, reply, id_type)
 
 
-def process_message(user_open_id: str, chat_id: str,
-                    chat_type: str, user_text: str):
-    target  = user_open_id if chat_type == "p2p" else chat_id
-    id_type = "open_id"    if chat_type == "p2p" else "chat_id"
+def process_message(user_open_id: str, chat_id: str, chat_type: str, user_text: str):
+    target = user_open_id if chat_type == "p2p" else chat_id
+    id_type = "open_id" if chat_type == "p2p" else "chat_id"
 
     reply = handle_command(user_open_id, user_text)
     if reply is None:
@@ -186,7 +224,7 @@ def process_message(user_open_id: str, chat_id: str,
 
 def do_p2_im_message_receive_v1(data) -> None:
     message = data.event.message
-    sender  = data.event.sender
+    sender = data.event.sender
 
     msg_id = message.message_id
     if msg_id in _processed_ids:
@@ -197,13 +235,14 @@ def do_p2_im_message_receive_v1(data) -> None:
             _processed_ids.discard(mid)
 
     user_open_id = sender.sender_id.open_id
-    chat_id      = message.chat_id
-    chat_type    = message.chat_type
+    chat_id = message.chat_id
+    chat_type = message.chat_type
     if not user_open_id:
         return
 
     msg_type = message.message_type
 
+    '''
     if msg_type in ("file", "image"):
         threading.Thread(
             target=handle_file_message,
@@ -211,12 +250,18 @@ def do_p2_im_message_receive_v1(data) -> None:
             daemon=True,
         ).start()
         return
+    '''
+    if msg_type in ("file", "image"):
+        _get_queue(user_open_id).put(
+            lambda: handle_file_message(user_open_id, chat_id, chat_type, message)
+        )
+        return
 
     if msg_type != "text":
         return
 
     try:
-        content   = json.loads(message.content)
+        content = json.loads(message.content)
         user_text = content.get("text", "").strip()
         if "@_user_" in user_text:
             user_text = " ".join(
@@ -229,8 +274,13 @@ def do_p2_im_message_receive_v1(data) -> None:
         return
 
     log.info(f"收到消息 [{user_open_id[:8]}...]: {user_text}")
+    '''
     threading.Thread(
         target=process_message,
         args=(user_open_id, chat_id, chat_type, user_text),
         daemon=True,
     ).start()
+    '''
+    _get_queue(user_open_id).put(
+        lambda: process_message(user_open_id, chat_id, chat_type, user_text)
+    )
