@@ -30,8 +30,8 @@ jobs:
 
       - name: Lint with ruff
         run: |
-          ruff . --output-format=github
+          ruff check . --output-format=github
 
       - name: Run pytest
         run: |
-          pytest
+          pytest -v --tb=short
